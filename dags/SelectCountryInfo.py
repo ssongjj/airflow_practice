@@ -45,6 +45,7 @@ def load(schema, table, records):
         for r in records:
             #작은 따옴표로 넣을 시 국가명에 작은 따옴표가 있는 경우가 존재해 오류가 발생하여 이스케이프 처리함
             sql = f"INSERT INTO {schema}.{table} VALUES (%s, %s, %s);" 
+            print(sql)
             cur.execute(sql, (r[0], r[1], r[2]))
         cur.execute("COMMIT;")   # cur.execute("END;")
     except Exception as error:
