@@ -32,13 +32,15 @@ def get_historical_prices(symbol):
 def _create_table(cur, schema, table, drop_first):
     if drop_first:
         cur.execute(f"DROP TABLE IF EXISTS {schema}.{table};")
+    #created_date 컬럼 추가
     cur.execute(f"""CREATE TABLE IF NOT EXISTS {schema}.{table} (
         date date,
         "open" float,
         high float,
         low float,
         close float,
-        volume bigint
+        volume bigint,
+        created_date TIMESTAMP DEFAULT GETDATE()
         );""")
 
 
@@ -56,11 +58,17 @@ def load(schema, table, records):
             sql = f"INSERT INTO t VALUES ('{r[0]}', {r[1]}, {r[2]}, {r[3]}, {r[4]}, {r[5]});"
             print(sql)
             cur.execute(sql)
-
+        
+        #임시 테이블과 원본 테이블의 데이터를 ROW_NUMBER를 통해서 데이터별 최근 날짜만 추출해 INSERT할 수 있게 작업
         # 원본 테이블 생성
         _create_table(cur, schema, table, True)
         # 임시 테이블 내용을 원본 테이블로 복사
-        cur.execute(f"INSERT INTO {schema}.{table} SELECT DISTINCT * FROM t;")
+        cur.execute(f"""INSERT INTO {schema}.{table} SELECT DATE, "OPEN", HIGH, LOW, CLOSE, VOLUME
+                    FROM (
+                            SELECT *
+                                , ROW_NUMBER() OVER (PARTITION BY DATE ORDER BY CREATED_DATE DESC) RANK
+                            FROM T)
+                    WHERE RANK = 1;""")
         cur.execute("COMMIT;")   # cur.execute("END;")
     except Exception as error:
         print(error)
